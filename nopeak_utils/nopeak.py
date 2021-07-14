@@ -28,6 +28,10 @@ class NoPeakMotif(Motif):
         parser.parse()
         results = parser.result()[0][0]["motif"]
 
+        # If there's only one element in the group, ttp returns a dict rather than a list.
+        if not isinstance(results, list):
+            results = [results]
+
         for result in results:
             result["pwm"] = NoPeakMotif.parse_pwm(result["pwm"])
 
