@@ -26,7 +26,7 @@ class NoPeakMotif(Motif):
     def __init__(self, motif, kmer_count, pfm, motif_id=None):
         self.kmer_count = kmer_count
         self.motif_str = motif
-        Motif.__init__(self, pfm)
+        Motif.__init__(self, pfm=pfm)
         if motif_id is not None:
             self.id = motif_id
 
@@ -58,9 +58,14 @@ class NoPeakMotif(Motif):
     def parse_pfm(pfm_str, strip_edges):
         """Parse the PFM embedded in the NoPeak output file"""
         pfm = ast.literal_eval(pfm_str)
-        pfm = [row[:4] for row in pfm]
+
         if strip_edges:
             pfm = NoPeakMotif._strip_edges(pfm)
+        else:
+            pfm = [[row[4] / 4.0] * 4 if set(row[:4]) == {0} else row for row in pfm]
+
+        pfm = [row[:4] for row in pfm]
+
         return pfm
 
     @staticmethod
@@ -68,7 +73,7 @@ class NoPeakMotif(Motif):
         nonzero = False
         stripped_pfm = []
         for row in pfm:
-            if sum(row):
+            if sum(row[:4]):
                 nonzero = True
             if nonzero:
                 stripped_pfm.append(row)
