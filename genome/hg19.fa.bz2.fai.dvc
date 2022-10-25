@@ -1,0 +1,4 @@
+outs:
+- md5: 9f1cad591d6b711420821efd0f249173
+  size: 12232
+  path: hg19.fa.bz2.fai
