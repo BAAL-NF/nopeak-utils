@@ -13,9 +13,13 @@ To set up the repository, do the following
 ```bash
 conda create -n nopeak-utils python=3.8
 conda activate nopeak-utils
-pip install poetry dvc
+pip install poetry
 poetry install
+dvc pull
 ```
+
+Note that dvc has been configured to work from an eddie wild west node only.
+If you wish to run the notebooks on your laptop, you'll have to either mount the datastore in /exports/igmm/datastore or use an SSH tunnel and create a local remote.
 
 ## [`motif_and_asb.ipynb`](/motif_and_asb.ipynb)
 

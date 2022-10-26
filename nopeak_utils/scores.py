@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Tuple
 
 import pandas as pd
 from gimmemotifs.motif import Motif
@@ -23,7 +23,7 @@ class ScoreSet:
         self.sites = sites.join(sequences)
         self.genome_name = genome_name
 
-    def _get_sequences(self, row: pd.Series):
+    def _get_sequences(self, row: pd.Series) -> pd.Series:
         """Get ref and alt sequences for a given site"""
         sequence = self.genome.get_peak(row.CHROM, row.POS)
         ref_seq = sequence
@@ -34,7 +34,7 @@ class ScoreSet:
         )
         return pd.Series({"ref_seq": ref_seq, "alt_seq": alt_seq})
 
-    def _score_sequences(self, fpr):
+    def _score_sequences(self, fpr: float):
         """Scan all reference and alternate sequences and store a list of
         the output scores in self.ref_matches/self.alt_matches"""
         scanner = Scanner()
@@ -47,7 +47,7 @@ class ScoreSet:
 
         return (ref_matches, alt_matches)
 
-    def get_best_scores(self, fpr=0.05) -> pd.DataFrame:
+    def get_best_scores(self, fpr: float = 0.05) -> pd.DataFrame:
         """
         Get the best motif score for each sequence, at a given false positive rate.
         """
@@ -87,7 +87,9 @@ class ScoreSet:
         return score_set
 
     @staticmethod
-    def re_score(sequence, pos, strand, motif):
+    def re_score(
+        sequence, pos: int, strand: int, motif: Motif
+    ) -> Tuple[float, int, int]:
         """Calculate the motif score at a given position in the sequence."""
         length = len(motif.pfm)
 
