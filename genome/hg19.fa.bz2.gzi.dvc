@@ -1,0 +1,4 @@
+outs:
+- md5: 861d1b419df80711ee4b29730f963950
+  size: 808712
+  path: hg19.fa.bz2.gzi

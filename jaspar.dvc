@@ -1,0 +1,5 @@
+outs:
+- md5: fa366276121a4f33bff2d0a920351aa5.dir
+  size: 4901
+  nfiles: 10
+  path: jaspar
