@@ -21,6 +21,7 @@ flake8 = "^3.9.2"
 pylint = "^2.9.3"
 mypy = "^0.910"
 ipykernel = "^6.4.2"
+dvc = {extras = ["all"], version = "^2.31.0"}
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

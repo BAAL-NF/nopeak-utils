@@ -7,7 +7,7 @@ The pipeline was initially run on CTCF only, the output of that run can be found
 Following that, another pipeline was run for FOXA1, NR3C1 and ESR1 (data in `/exports/igmm/eddie/ponting-lab/oyvind/work/baal_chip/prototypes/motifs_2`). 
 Hence this repository has two data folders, one for [CTCF](ctcf) and one for the [other transcription factors](other_tfs.dvc).
 
-This repository uses poetry for dependency handling and DVC for handling large data files. 
+This repository uses poetry for dependency handling and git-lfs for handling large data files. 
 To set up the repository, do the following
 
 ```bash
@@ -15,7 +15,6 @@ conda create -n nopeak-utils python=3.8
 conda activate nopeak-utils
 pip install poetry dvc
 poetry install
-dvc pull
 ```
 
 ## [`motif_and_asb.ipynb`](/motif_and_asb.ipynb)

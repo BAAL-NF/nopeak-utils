@@ -1,0 +1,4 @@
+[core]
+    remote = datastore
+['remote "datastore"']
+    url = /exports/igmm/datastore/ponting-lab/oyvind/dvc/motifs
