@@ -12,7 +12,7 @@ ttp = "^0.7.1"
 numpy = "^1.21.3"
 dask = "^2021.10.0"
 memory-tempfile = "^2.2.3"
-tfomics = {git = "ssh://git@git.ecdf.ed.ac.uk/oalmelid/tfomics.git"}
+tfomics = {git = "ssh://git@git.ecdf.ed.ac.uk/tfomics/prototypes/tfomics-utils.git"}
 coreapi = "^2.3.3"
 
 [tool.poetry.dev-dependencies]
