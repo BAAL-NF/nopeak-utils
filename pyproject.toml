@@ -12,8 +12,8 @@ ttp = "^0.7.1"
 numpy = "^1.21.3"
 dask = "^2021.10.0"
 memory-tempfile = "^2.2.3"
-tfomics = {git = "ssh://git@git.ecdf.ed.ac.uk/tfomics/prototypes/tfomics-utils.git"}
 coreapi = "^2.3.3"
+tfomics = {version = "^0.3.0", source = "gitlab"}
 
 [tool.poetry.dev-dependencies]
 black = {extras = ["jupyter"], version = "^22.10.0"}
@@ -22,6 +22,12 @@ pylint = "^2.9.3"
 mypy = "^0.910"
 ipykernel = "^6.4.2"
 dvc = {extras = ["all"], version = "^2.31.0"}
+
+[[tool.poetry.source]]
+name = "gitlab"
+url = "https://git.ecdf.ed.ac.uk/api/v4/projects/9635/packages/pypi/simple"
+default = false
+secondary = false
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

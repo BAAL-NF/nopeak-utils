@@ -5,3 +5,4 @@ poetry.lock
 /other_tfs
 /jaspar
 /rsids
+credentials.sh
