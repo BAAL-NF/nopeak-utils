@@ -45,3 +45,16 @@ Two things might be interesting in there, namely:
 
 - gimmemotifs built-in clustering algorithm
 - gimmemotifs ability to look up the best-matching motif from a database.
+
+## Docker container
+
+In order to build the docker container, create a file called `credentials.sh` (it is in .gitignore), and set the following variables to conform with a gitlab access token that has read/write permissions to the package registry
+```
+export POETRY_HTTP_BASIC_GITLAB_USERNAME=<token-name>
+export POETRY_HTTP_BASIC_GITLAB_PASSWORD=<token>
+```
+
+The docker container should be viewed as a proof of concept for integrating with the baal-nf pipeline.
+Future plans are
+- Move nopeak_utils classes into tfomics library
+- Move any requirements for processing nopeak motifs into the baal-nf-env container.
