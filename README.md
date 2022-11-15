@@ -11,7 +11,7 @@ This repository uses poetry for dependency handling and git-lfs for handling lar
 To set up the repository, do the following
 
 ```bash
-conda create -n nopeak-utils python=3.8
+conda create -n nopeak-utils python=3.8 gimmemotifs=0.17.2
 conda activate nopeak-utils
 pip install poetry
 poetry install
