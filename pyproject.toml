@@ -15,11 +15,12 @@ coreapi = "^2.3.3"
 tfomics = {version = "^0.3.2", source = "gitlab"}
 
 [tool.poetry.group.dev.dependencies]
-black = "^22.10.0"
+black = {extras = ["jupyter"], version = "^22.10.0"}
 flake8 = "^5.0.4"
 pylint = "^2.15.5"
 mypy = "^0.990"
 ipykernel = "^6.17.1"
+dvc = "^2.31.0"
 
 [[tool.poetry.source]]
 name = "gitlab"
