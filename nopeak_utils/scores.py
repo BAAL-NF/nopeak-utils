@@ -15,13 +15,13 @@ class ScoreSet:
         sites: pd.DataFrame,
         motifs: List[Motif],
         genome: ReferenceGenome,
-        genome_name="hg19",
+        fasta: str,
     ):
         self.motifs = motifs
         self.genome = genome
         sequences = sites.apply(self._get_sequences, axis=1)
         self.sites = sites.join(sequences)
-        self.genome_name = genome_name
+        self.fasta = fasta
 
     def _get_sequences(self, row: pd.Series) -> pd.Series:
         """Get ref and alt sequences for a given site"""
@@ -39,7 +39,7 @@ class ScoreSet:
         the output scores in self.ref_matches/self.alt_matches"""
         scanner = Scanner()
         scanner.set_motifs(self.motifs)
-        scanner.set_genome(self.genome_name)
+        scanner.set_background(fname=self.fasta)
         scanner.set_threshold(fpr=fpr)
 
         ref_matches = list(scanner.scan(Fasta(fdict=self.sites.ref_seq.to_dict())))
