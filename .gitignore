@@ -6,3 +6,6 @@ poetry.lock
 /jaspar
 /rsids
 credentials.sh
+*csv
+*txt
+*obj
