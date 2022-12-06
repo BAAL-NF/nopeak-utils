@@ -7,13 +7,12 @@ license = "MIT"
 
 [tool.poetry.dependencies]
 python = ">=3.8,<3.11"
-gimmemotifs = "^0.17.0"
 ttp = "^0.7.1"
 numpy = "^1.21.3"
 dask = "^2021.10.0"
 memory-tempfile = "^2.2.3"
 coreapi = "^2.3.3"
-tfomics = {version = "^0.3.0", source = "gitlab"}
+tfomics = {version = "^0.3.2", source = "gitlab"}
 
 [tool.poetry.dev-dependencies]
 black = {extras = ["jupyter"], version = "^22.10.0"}
@@ -21,7 +20,7 @@ flake8 = "^3.9.2"
 pylint = "^2.9.3"
 mypy = "^0.910"
 ipykernel = "^6.4.2"
-dvc = {extras = ["all"], version = "^2.31.0"}
+dvc = "^2.31.0"
 
 [[tool.poetry.source]]
 name = "gitlab"
