@@ -12,6 +12,7 @@ numpy = "^1.21.3"
 dask = "^2021.10.0"
 memory-tempfile = "^2.2.3"
 coreapi = "^2.3.3"
+gimmemotifs = "^0.17.2"
 tfomics = {version = "^0.3.2", source = "gitlab"}
 
 [tool.poetry.dev-dependencies]
