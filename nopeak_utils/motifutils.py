@@ -112,7 +112,7 @@ def pull_motif_metadata(motifs, kmer_count = False):
 
     return df
 
-def get_asb(input_path, tf):
+def get_snps(input_path, tf, filter_peak = True):
     """
     Read in ASB site CSV file output from the baal-nf pipeline.
 
@@ -129,7 +129,8 @@ def get_asb(input_path, tf):
 
     """
     data = dd.read_csv(f"{input_path}/*{tf}*.csv", include_path_column=True)
-    data = data[data.peak]
+    if filter_peak:
+        data = data[data.peak]
     data["cell_line"] = data.apply(lambda row: Path(row.path).name.split("_")[0],  axis=1)
     data["tf"] = data.apply(lambda row: Path(row.path).name.split(".")[0].split("_")[1],  axis=1)
     data = data.compute().reset_index(drop=True)
@@ -224,6 +225,13 @@ def cluster_high_kmer_motifs(motifs, tf, ncpus = 1, out_dir = ".", save_logos = 
     ----------
     defaultdict with a List of clustered motifs, with the key being set to the tf name.
     """
+    # Check if there is only 1 motif, or none
+    if (len(motifs[tf]) == 0):
+        print(f"No NoPeak motifs found with KMER count > 10 for {tf}. Exiting...")
+        exit(0)
+    elif (len(motifs[tf]) == 1):
+        return motifs
+    
     # Cluster using gimmemotifs clustering method and MotifTree object
     print("Clustering high KMER motifs...")
     clustered_motifs = cluster_motifs(
@@ -358,7 +366,8 @@ def find_motif_matches(motifs, tf, save_accessory = True, out_dir = "."):
                             (summary_human.score >= 0.7) & 
                             np.logical_not(summary_human.NoPeak_motif.isin(matches_expected))
                             ] 
-        motif_matches.to_csv(f"{out_dir}/{tf}_accessory_motif_JASPAR_matches.csv")
+        if motif_matches.shape[0] > 0:
+            motif_matches.to_csv(f"{out_dir}/{tf}_accessory_motif_JASPAR_matches.csv")
 
     return matches_expected, matches_new, matches_none
 
@@ -434,11 +443,11 @@ def add_nopeak_information(df, corrs, redundant_motif_list, accessory_motif_list
         if motif not in sig_motifs.motif.values.tolist():
             nopeak_map.append(np.nan)
         elif query in redundant_motif_list:
-            nopeak_map.append(f"Matches expected JASPAR motif")
+            nopeak_map.append(f"NoPeak redundant motif")
         elif query in accessory_motif_list:
-            nopeak_map.append("New accessory motif")
+            nopeak_map.append("NoPeak accessory motif")
         elif query in denovo_motif_list:
-            nopeak_map.append("de novo NoPeak motif")
+            nopeak_map.append("NoPeak de novo motif")
         else:
             raise ValueError("Motif does not fit any known category.")
     df["NoPeak_mapping"] = nopeak_map 
@@ -531,7 +540,7 @@ def filter_for_high_quality_motifs(df):
         df.High_quality_motif
     ].copy()
 
-def filter_bqtls(df, concordant = True):
+def filter_asbs(df, concordant = True):
     """
     Filter dataframe for ASB sites that are either:
         1) Concordant or
@@ -551,7 +560,7 @@ def filter_bqtls(df, concordant = True):
     pandas DataFrame where rows that do not meet the criteria specified are filtered out.
     """
     if concordant:
-        return df[
+        sub_df = df[
             df.isASB
             & (
                 ((df["Corrected.AR"] > 0.5) & (df.score_diff > 0))
@@ -559,10 +568,199 @@ def filter_bqtls(df, concordant = True):
             )
         ].copy()
     else:
-        return df[
+        sub_df = df[
             df.isASB
             & (
                 ((df["Corrected.AR"] < 0.5) & (df.score_diff > 0))
                 | ((df["Corrected.AR"] > 0.5) & (df.score_diff < 0))
             )
         ].copy()
+    sub_df["Concordant"] = concordant
+    return sub_df
+
+# For compiling across motif datasets
+def get_snp_data(input_path, tf):
+    data = dd.read_csv(f"{input_path}/*{tf}.withPeaks.csv", include_path_column=True)
+    data["cell_line"] = data.apply(lambda row: Path(row.path).name.split("_")[0],  axis=1)
+    data["tf"] = data.apply(lambda row: Path(row.path).name.split(".")[0].split("_")[1],  axis=1)
+    data = data.drop(['path'], axis = 1)
+    peak_data = data[data.peak].copy()
+    data = data.compute().reset_index(drop=True)
+    peak_data = peak_data.compute().reset_index(drop=True)
+    return peak_data, data
+
+def get_nopeak(input_path, tf, motif_mode):
+    if ((motif_mode == "noNoPeak") | (motif_mode == "noMotifs")):
+        colnames = ['ID', 'CHROM', 'POS', 'REF', 'ALT', 'REF.counts', 'ALT.counts', 'Total.counts', 
+        'AR', 'RMbias', 'RAF', 'Bayes_lower', 'Bayes_upper', 'Bayes_SD', 'conf_0.99_lower', 'conf_0.99_upper', 
+        'Corrected.AR', 'isASB', 'peak', 'path', 'cell_line', 'tf', 'ref_seq', 'alt_seq', 'motif', 'motif_pos', 
+        'motif_strand', 'ref_score', 'alt_score', 'score_diff', 'tf_motif', 'High_quality_motif', 'NoPeak_mapping', 'Concordant']
+        data = pd.DataFrame(columns = colnames)
+    elif ((motif_mode == "allMotifs") | (motif_mode == "noJaspar")):
+        data = pd.read_csv(f"{input_path}/{tf}_ASBs_NoPeak_Motifs_AR_score_diff.csv")
+    else:
+        sys.stderr("No valid mode given, Please specify either allMotifs, noMotifs, noNoPeak or noJaspar.")
+        exit(1)
+    
+    data = data.convert_dtypes()
+    data = data[data.tf == tf]
+    return data
+
+def get_jaspar(input_path, tf, motif_mode):
+    if ((motif_mode == "noJaspar") | (motif_mode == "noMotifs")):
+        colnames = ['ID', 'CHROM', 'POS', 'REF', 'ALT', 'REF.counts', 'ALT.counts', 'Total.counts', 
+        'AR', 'RMbias', 'RAF', 'Bayes_lower', 'Bayes_upper', 'Bayes_SD', 'conf_0.99_lower', 'conf_0.99_upper', 
+        'Corrected.AR', 'isASB', 'peak', 'path', 'cell_line', 'tf', 'ref_seq', 'alt_seq', 'motif', 'motif_pos', 
+        'motif_strand', 'ref_score', 'alt_score', 'score_diff', 'tf_motif', 'High_quality_motif', 'NoPeak_mapping', 'Concordant']
+        data = pd.DataFrame(columns = colnames)
+    elif ((motif_mode == "allMotifs") | (motif_mode == "noNoPeak")):
+        data = pd.read_csv(f"{input_path}/{tf}_ASBs_JASPAR_Motifs_AR_score_diff.csv")
+    else:
+        sys.stderr("No valid mode given, Please specify either allMotifs, noMotifs, noNoPeak or noJaspar.")
+        exit(1)
+    
+    data = data.convert_dtypes()
+    data = data[data.tf == tf]
+    return data
+
+def subset_asbs(jaspar, nopeak, tf, concordant = True, isasb = True):
+    sub_jaspar = jaspar[
+        (jaspar.High_quality_motif) & 
+        (jaspar.isASB == isasb) &
+        (jaspar.tf == tf)
+        ].copy()
+    sub_nopeak = nopeak[
+        (nopeak.High_quality_motif) & 
+        (nopeak.isASB == isasb) &
+        (nopeak.tf == tf) &
+        (nopeak.NoPeak_mapping != 'NoPeak redundant motif')
+        ].copy()
+
+    if isasb:
+        sub_jaspar = sub_jaspar[sub_jaspar.Concordant == concordant]
+        sub_nopeak = sub_nopeak[sub_nopeak.Concordant == concordant]
+
+    return sub_jaspar, sub_nopeak 
+
+def classify_jaspar_concordant(snp, cell_line, concordant_jaspar, snp_data):
+    row = concordant_jaspar.index[
+        (concordant_jaspar['ID'] == snp) &
+        (concordant_jaspar['cell_line'] == cell_line)
+    ]
+    sub = concordant_jaspar.loc[row].copy()
+    motifs = ";".join(np.unique(sub.motif.values))
+    out = sub[snp_data.columns.tolist() + ['High_quality_motif', 'Concordant']].drop_duplicates()
+    out['Motifs'] = motifs
+    out['Motif_group'] = 'JASPAR'
+    if out.shape[0] > 1:
+        raise ValueError("More than one transcription factor present in this table")
+    return out
+
+def classify_nopeak_concordant(snp, cell_line, concordant_nopeak, snp_data):
+    row = concordant_nopeak.index[
+        (concordant_nopeak['ID'] == snp) &
+        (concordant_nopeak['cell_line'] == cell_line) &
+        (concordant_nopeak['NoPeak_mapping'] == "NoPeak accessory motif")
+    ]
+    if len(row) > 0:
+        group = "NoPeak_accessory_motif"
+    elif len(row) == 0:
+        row = concordant_nopeak.index[
+            (concordant_nopeak['ID'] == snp) &
+            (concordant_nopeak['cell_line'] == cell_line) &
+            (concordant_nopeak['NoPeak_mapping'] == "NoPeak de novo motif")
+        ]
+        group = "NoPeak_denovo"
+    sub = concordant_nopeak.loc[row].copy()
+    motifs = ";".join(np.unique(sub.motif.values))
+    out = sub[snp_data.columns.tolist() + ['High_quality_motif', 'Concordant']].drop_duplicates()
+    out['Motifs'] = motifs
+    out['Motif_group'] = group
+    if out.shape[0] > 1:
+        raise ValueError("More than one transcription factor present in this table")
+    return out
+
+def classify_discordant(snp, cell_line, discordant_jaspar, discordant_nopeak, snp_data):
+    row_jasp = discordant_jaspar.index[
+        (discordant_jaspar['ID'] == snp) &
+        (discordant_jaspar['cell_line'] == cell_line)
+    ]
+    row_nopeak = discordant_nopeak.index[
+        (discordant_nopeak['ID'] == snp) &
+        (discordant_nopeak['cell_line'] == cell_line)
+    ]
+    subjasp = discordant_jaspar.loc[row_jasp].copy()
+    subnopeak = discordant_nopeak.loc[row_nopeak].copy()
+    if subjasp.shape[0] != 0 and subnopeak.shape[0] != 0:
+        group = "JASPAR and NoPeak"
+    elif subjasp.shape[0] != 0:
+        group = "JASPAR"
+    else:
+        group = "NoPeak"
+    sub = pd.concat([subjasp, subnopeak])
+    motifs = ";".join(np.unique(sub.motif.values))
+    out = sub[snp_data.columns.tolist() + ['High_quality_motif', 'Concordant']].drop_duplicates()
+    out['Motifs'] = motifs
+    out['Motif_group'] = group
+    if out.shape[0] > 1:
+        raise ValueError("More than one transcription factor present in this table")
+    return out
+
+def classify_non_asb(snp, cell_line, snps_jaspar, snps_nopeak, snp_data):
+    row_jasp = snps_jaspar.index[
+        (snps_jaspar['ID'] == snp) &
+        (snps_jaspar['cell_line'] == cell_line)
+    ]
+    row_nopeak = snps_nopeak.index[
+        (snps_nopeak['ID'] == snp) &
+        (snps_nopeak['cell_line'] == cell_line)
+    ]
+    subjasp = snps_jaspar.loc[row_jasp].copy()
+    subnopeak = snps_nopeak.loc[row_nopeak].copy()
+    if subjasp.shape[0] != 0 and subnopeak.shape[0] != 0:
+        group = "JASPAR and NoPeak"
+    elif subjasp.shape[0] != 0:
+        group = "JASPAR"
+    else:
+        group = "NoPeak"
+    sub = pd.concat([subjasp, subnopeak])
+    motifs = ";".join(np.unique(sub.motif.values))
+    out = sub[snp_data.columns.tolist() + ['High_quality_motif', 'Concordant']].drop_duplicates()
+    out['Motifs'] = motifs
+    out['Motif_group'] = group
+    return out
+
+def classify_no_motif(index, snp_data):
+    out = snp_data.loc[[index]].copy()
+    out['High_quality_motif'] = pd.NA
+    out['Concordant'] = pd.NA
+    out['Motifs'] = pd.NA
+    out['Motif_group'] = pd.NA
+    return out
+
+def map_snp_by_row(row, concordant_jaspar, concordant_nopeak, discordant_jaspar, discordant_nopeak, snps_jaspar, snps_nopeak, snp_data):
+    index = row.name
+    snp = row['ID']
+    cell_line = row['cell_line']
+
+    if snp in concordant_jaspar[concordant_jaspar.cell_line == cell_line].ID.values:
+        return classify_jaspar_concordant(snp, cell_line, concordant_jaspar, snp_data)
+    elif snp in concordant_nopeak[concordant_nopeak.cell_line == cell_line].ID.values:
+        return classify_nopeak_concordant(snp, cell_line, concordant_nopeak, snp_data)
+    elif snp in np.append(discordant_jaspar[discordant_jaspar.cell_line == cell_line].ID.values,
+                          discordant_nopeak[discordant_nopeak.cell_line == cell_line].ID.values):
+        return classify_discordant(snp, cell_line, discordant_jaspar, discordant_nopeak, snp_data)
+    elif snp in np.append(snps_jaspar[snps_jaspar.cell_line == cell_line].ID.values,
+                          snps_nopeak[snps_nopeak.cell_line == cell_line].ID.values):
+        return classify_non_asb(snp, cell_line, snps_jaspar, snps_nopeak, snp_data)
+    else:
+        return classify_no_motif(index, snp_data)
+
+def classify_asb_quality(row):
+    if pd.notna(row['Concordant']) and row['Concordant']:
+        if row['peak']:
+            return 'High'
+        else:
+            return 'Medium'
+    else:
+        return pd.NA
