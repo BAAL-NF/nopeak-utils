@@ -11,4 +11,4 @@ WORKDIR /build/
 RUN --mount=type=secret,id=gitlab,dst=/etc/credentials.sh\
     . /etc/credentials.sh &&\
     POETRY_VIRTUALENVS_CREATE=false poetry install
-ENV PYTHONPATH "${PYTHONPATH}:/build"
+ENV PYTHONPATH="${PYTHONPATH}:/build"
