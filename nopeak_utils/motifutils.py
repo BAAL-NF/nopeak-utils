@@ -12,6 +12,7 @@ from gimmemotifs.motif import read_motifs
 from gimmemotifs.comparison import MotifComparer
 from gimmemotifs.cluster import cluster_motifs, MotifTree
 from nopeak import NoPeakMotif
+from scores import ScoreSet
 
 from scipy.stats import spearmanr
 
@@ -61,6 +62,33 @@ def read_nopeak_motifs(input_path, tf):
             )
 
     return motifs
+
+def score_snps(data, motifs, tf, genome):
+    # Return None if input data is empty, motifs is None or empty
+    if (data.empty):
+        return None
+
+    if motifs is None:
+        return None
+     
+    if (len(motifs[tf])==0):
+        return None
+    
+    # Create score set object through gimmemotifs for all facors and motifs within SNP sites for genome hg19
+    print("Creating score set object through gimmemotifs for all factors and motifs in ASB sites...")
+    score_sets = { factor : ScoreSet(data, motif_list, genome) for factor, motif_list in motifs.items()}
+
+    # Get best motif score with FPR < 0.05
+    print("Pulling best motif score with FPR < 0.05 for all motifs in this set...")
+    all_scores = { factor : set.get_best_scores(fpr=0.05) for factor, set in score_sets.items() }
+
+    if all_scores[tf].empty:
+        print(f"No sequences scored against motifs for {tf} found with FDR < 0.05")
+        return None
+    
+    # Remove score_diff == 0
+    scores = { factor : set[set.score_diff != 0] for factor, set in all_scores.items()}
+    return scores
 
 def pull_ic(motifs):
     """
@@ -259,7 +287,7 @@ def cluster_high_kmer_motifs(motifs, tf, ncpus = 1, out_dir = ".", save_logos = 
 
     return motif_dict
 
-def find_high_quality_motifs(df, corrs, motifs, tf):
+def find_high_quality_motifs(scores, corrs, motifs, tf, return_dict = True):
     """
     Filter correlations DataFrame to only include high-quality motifs.
     These are defined as those with:
@@ -269,7 +297,7 @@ def find_high_quality_motifs(df, corrs, motifs, tf):
     
     Arguments
     ----------
-    df : pandas DataFrame
+    scores : scores Dict containing scores for TFs-of-interest
         All scores to a set of motifs for every SNP-of-interest.
     corrs : pandas DataFrame
         Spearman's correlation coefficient and associated p-value for every motif-of-interest. 
@@ -285,6 +313,10 @@ def find_high_quality_motifs(df, corrs, motifs, tf):
         1) a list of Motif objects for the motifs which fit the criteria of "high-quality".
         2) a pandas DataFrame containing the scores for all SNPs to all motifs-of-interest, filtered for high-quality motifs.
     """
+    if scores is None:
+        return None, None
+    
+    df = scores[tf]
     filt = []
     significant_motifs = corrs[
         (corrs.pval <= 0.05) & 
@@ -299,7 +331,11 @@ def find_high_quality_motifs(df, corrs, motifs, tf):
     if table_filt.shape[0]==0:
         sys.stderr.write(f"No significant motifs found for {tf}.\n")
 
-    return filt, table_filt
+    if not return_dict:
+        return filt, table_filt
+    filt_dict = { tf : filt }
+    return filt_dict, table_filt
+
 
 def find_motif_matches(motifs, tf, save_accessory = True, out_dir = "."):
     """
@@ -327,8 +363,13 @@ def find_motif_matches(motifs, tf, save_accessory = True, out_dir = "."):
         2) List of motif names which are accessory
         3) List of motif names which are de novo 
     """
+    # Access motif list for tf-of-interest
+    motif_list = motifs[tf]
+    if len(motif_list)==0:
+        return None, None, None
+
     mc = MotifComparer()
-    compare_motifs = mc.get_all_scores(motifs=motifs, dbmotifs=read_motifs("JASPAR2022_vertebrates"), match="partial", metric="seqcor", combine="mean")
+    compare_motifs = mc.get_all_scores(motifs=motif_list, dbmotifs=read_motifs("JASPAR2022_vertebrates"), match="partial", metric="seqcor", combine="mean")
 
     a=[]
     for i in compare_motifs.keys():
@@ -357,7 +398,7 @@ def find_motif_matches(motifs, tf, save_accessory = True, out_dir = "."):
     )
 
     # Find NoPeak motifs that match no known JASPAR motifs
-    motif_names = ['_'.join(str(x).split('_')[:-1]) for x in motifs] # remove trailing characters from motif name
+    motif_names = ['_'.join(str(x).split('_')[:-1]) for x in motif_list] # remove trailing characters from motif name
     matches_none = np.unique([motif for motif in motif_names if motif not in 
                     np.concatenate((matches_expected,matches_new), axis = 0)])
 
@@ -396,6 +437,8 @@ def save_logo_plot(motifs, motif_list, tf, motif_group, out_dir = ".", sub_dir =
     ----------
     Does not return anything, but saves the plots to the specified output directory. 
     """
+    if motifs is None:
+        return
     if save:
         if len(motifs) != 0:
             motifs_to_plot = []
@@ -468,8 +511,11 @@ def compute_correlations(scores_dict):
     ----------
     pandas DataFrame containing each motif in your input, with the Spearman's rho correlation coefficient and associated p-value. 
     """
-    corr_dict = defaultdict(dict)
+    if scores_dict is None:
+        corrs = pd.DataFrame(columns = ['factor', 'motif', 'spearmans_rho', 'pval'])
+        return corrs
 
+    corr_dict = defaultdict(dict)
     for factor, score_set in scores_dict.items():
         for motif, group in score_set.groupby("motif"):
             correlation = spearmanr(group["Corrected.AR"],group.score_diff)
@@ -491,14 +537,14 @@ def compute_correlations(scores_dict):
 
     return corrs
 
-def compute_snp_counts(df, asb, motif_tf, asb_tf):
+def compute_snp_counts(scores_dict, asb, motif_tf, asb_tf):
     """
     Compute the number of SNPs that map to a given motif.
 
     Arguments
     ----------
-    df : pandas DataFrame
-        DataFrame contianing all SNPs mapped to all high-quality motifs and their associated scores.
+    df : default Dict
+        Scores dict all SNPs mapped to all high-quality motifs and their associated scores.
     asb : pandas DataFrame
         DataFrame containing all ASB sites.
         This should be the output of get_asb().
@@ -512,6 +558,9 @@ def compute_snp_counts(df, asb, motif_tf, asb_tf):
     ----------
     pandas DataFrame which summarizes the SNP counts that map to all motifs-of-interest. 
     """
+    if scores_dict is None:
+        return pd.DataFrame(columns = ['motif', 'counts', 'fraction_of_snps', 'tf_motif', 'tf_asb'])
+    df = scores_dict[motif_tf]
     rsid_counts = {factor : len(set.ID.unique()) for factor, set in asb.groupby("tf")}
     snp_cts = []
     id_counts = pd.DataFrame(df.pivot(columns=("motif"), values=("ID")).apply(lambda series: len(series.dropna().unique()), axis=0), columns=["counts"]).sort_values(by="counts", ascending=False).reset_index()
@@ -520,8 +569,28 @@ def compute_snp_counts(df, asb, motif_tf, asb_tf):
     id_counts["tf_asb"] = asb_tf
     snp_cts.append(id_counts)
     snp_cts = pd.concat(snp_cts)
-
     return snp_cts
+
+def compile_scores_data(scores_dict, tf):
+    if scores_dict is None:
+        return pd.DataFrame(columns = ['ID', 'CHROM', 'POS', 'REF', 'ALT', 'REF.counts', 'ALT.counts',
+       'Total.counts', 'AR', 'RMbias', 'RAF', 'Bayes_lower', 'Bayes_upper',
+       'Bayes_SD', 'conf_0.99_lower', 'conf_0.99_upper', 'Corrected.AR',
+       'isASB', 'peak', 'path', 'cell_line', 'tf', 'ref_seq', 'alt_seq',
+       'motif', 'motif_pos', 'motif_strand', 'ref_score', 'alt_score',
+       'score_diff'])
+    df = scores_dict[tf].copy()
+    df["High_quality_motif"] = df["motif"].isin(df["motif"].unique())
+    return df
+
+def compile_motif_data(corr_df, ic_df, snp_counts_df, tf):
+    motif_df = corr_df.set_index('motif').join(ic_df.set_index('motif'))
+    motif_df = motif_df.drop(['factor'],axis=1)
+    motif_df["high_quality"] = (motif_df.pval <= 0.05) & (motif_df.spearmans_rho > 0)
+    motif_df = pd.concat([snp_counts_df.set_index('motif'),motif_df], axis = 1)
+    motif_df = motif_df[["counts","fraction_of_snps","spearmans_rho","pval","information_content","high_quality"]]
+    motif_df["tf"] = tf
+    return motif_df
 
 def filter_for_high_quality_motifs(df):
     """
@@ -578,7 +647,6 @@ def filter_asbs(df, concordant = True):
     sub_df["Concordant"] = concordant
     return sub_df
 
-# For compiling across motif datasets
 def get_snp_data(input_path, tf):
     data = dd.read_csv(f"{input_path}/*{tf}.withPeaks.csv", include_path_column=True)
     data["cell_line"] = data.apply(lambda row: Path(row.path).name.split("_")[0],  axis=1)
@@ -587,6 +655,7 @@ def get_snp_data(input_path, tf):
     peak_data = data[data.peak].copy()
     data = data.compute().reset_index(drop=True)
     peak_data = peak_data.compute().reset_index(drop=True)
+
     return peak_data, data
 
 def get_nopeak(input_path, tf, motif_mode):
@@ -764,3 +833,4 @@ def classify_asb_quality(row):
             return 'Medium'
     else:
         return pd.NA
+    
