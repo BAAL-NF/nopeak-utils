@@ -578,7 +578,7 @@ def compile_scores_data(scores_dict, tf):
        'Bayes_SD', 'conf_0.99_lower', 'conf_0.99_upper', 'Corrected.AR',
        'isASB', 'peak', 'path', 'cell_line', 'tf', 'ref_seq', 'alt_seq',
        'motif', 'motif_pos', 'motif_strand', 'ref_score', 'alt_score',
-       'score_diff'])
+       'score_diff','High_quality_motif'])
     df = scores_dict[tf].copy()
     df["High_quality_motif"] = df["motif"].isin(df["motif"].unique())
     return df
