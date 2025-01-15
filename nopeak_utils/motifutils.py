@@ -104,6 +104,8 @@ def pull_ic(motifs):
     returns a pandas DataFrame with a row for each motif in the input and its information content.
     """
     df = pd.DataFrame(columns = ['motif','information_content'])
+    if motifs is None:
+        return df
     for factor, motif_list in motifs.items():
         df = pd.DataFrame({'motif':[str(motif) for motif in motif_list], 
                            'information_content': [str(motif.information_content) for motif in motif_list]})
@@ -129,6 +131,8 @@ def pull_motif_metadata(motifs, kmer_count = False):
 
     """
     df = pd.DataFrame(columns = ['motif','information_content'])
+    if motifs is None:
+        return df
     for factor, motif_list in motifs.items():
         if kmer_count:
             df = pd.DataFrame({'motif':[str(motif) for motif in motif_list], 
@@ -255,8 +259,8 @@ def cluster_high_kmer_motifs(motifs, tf, ncpus = 1, out_dir = ".", save_logos = 
     """
     # Check if there is only 1 motif, or none
     if (len(motifs[tf]) == 0):
-        print(f"No NoPeak motifs found with KMER count > 10 for {tf}. Exiting...")
-        exit(0)
+        print(f"No NoPeak motifs found with KMER count > 10 for {tf}.")
+        return None
     elif (len(motifs[tf]) == 1):
         return motifs
     
@@ -363,6 +367,9 @@ def find_motif_matches(motifs, tf, save_accessory = True, out_dir = "."):
         2) List of motif names which are accessory
         3) List of motif names which are de novo 
     """
+    if motifs is None:
+        return None, None, None
+    
     # Access motif list for tf-of-interest
     motif_list = motifs[tf]
     if len(motif_list)==0:
@@ -830,7 +837,7 @@ def classify_asb_quality(row):
         if row['peak']:
             return 'High'
         else:
-            return 'Medium'
+            return 'Low'
     else:
         return pd.NA
     
