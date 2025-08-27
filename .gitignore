@@ -6,3 +6,5 @@ poetry.lock
 /jaspar
 /rsids
 credentials.sh
+check_pgr*
+local_*

@@ -1,8 +1,8 @@
 [tool.poetry]
 name = "nopeak-utils"
-version = "0.1.0"
+version = "0.2.0"
 description = "Utility functions for parsing the output from nopeak"
-authors = ["Øyvind Almelid <oyvind.almelid@igmm.ed.ac.uk>"]
+authors = ["Øyvind Almelid <oyvind.almelid@igmm.ed.ac.uk>", Breeshey Roskams-Hieter <b.j.roskams-hieter@sms.ed.ac.uk>]
 license = "MIT"
 
 [tool.poetry.dependencies]
